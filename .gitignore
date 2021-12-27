@@ -1,0 +1,4 @@
+test/
+docker-compose/var/
+docker-compose/data/
+docker-compose/elasticsearch/nodes/

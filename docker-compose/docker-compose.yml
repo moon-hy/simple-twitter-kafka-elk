@@ -1,0 +1,136 @@
+version: '3.8'
+
+services:
+  elasticsearch:
+    container_name: elasticsearch
+    # Dockerfile에서 build, 경로 context: PATH
+    build:
+      context: elasticsearch/
+      # args: 변수 넘겨줌
+      args:
+        ELK_VERSION: $ELK_VERSION
+    # 데이터 영구 보관을 위한 volumes : volume(Docker System), bind(File System), tmpfs(Memory)
+    volumes:
+      - type: bind
+        source: ./elasticsearch/config/elasticsearch.yml
+        target: /usr/share/elasticsearch/config/elasticsearch.yml
+        read_only: true
+      - type: bind
+        source: ./elasticsearch
+        target: /usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    # as list / as map 구분해야 함.
+    # as list:   - KEY=VALUE  (앞에 minus, ':' 대신 '=')
+    # as map:    KEY: VALUE   (앞에 minus 없음, '=' 사용하지 않고 ':' 사용')
+    environment:
+      ES_JAVA_OPTS: "-Xmx256m -Xms256m"
+      ELASTIC_PASSWORD: password
+      # Use single node discovery in order to disable production mode and avoid bootstrap checks.
+      # see: https://www.elastic.co/guide/en/elasticsearch/reference/current/bootstrap-checks.html
+      discovery.type: single-node
+    # container 들이 통신할 네트워크 설정
+    networks:
+      - kafka-elk
+
+  logstash:
+    container_name: logstash
+    build:
+      context: logstash/
+      args:
+        ELK_VERSION: $ELK_VERSION
+    volumes:
+      - type: bind
+        source: ./logstash/config/logstash.yml
+        target: /usr/share/logstash/config/logstash.yml
+        read_only: true
+      - type: bind
+        source: ./logstash/pipeline
+        target: /usr/share/logstash/pipeline
+        read_only: true
+    ports:
+      - "5000:5000/tcp"
+      - "5000:5000/udp"
+      - "9600:9600"
+    environment:
+      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+    networks:
+      - kafka-elk
+    # 의존성, elasticsearch가 실행된 후에 실행됨.
+    depends_on:
+      - elasticsearch
+
+  kibana:
+    container_name: kibana
+    build:
+      context: kibana/
+      args:
+        ELK_VERSION: $ELK_VERSION
+    volumes:
+      - type: bind
+        source: ./kibana/config/kibana.yml
+        target: /usr/share/kibana/config/kibana.yml
+        read_only: true
+    ports:
+      - "5601:5601"
+    networks:
+      - kafka-elk
+    depends_on:
+      - elasticsearch
+
+  zookeeper:
+    container_name: zookeeper
+    build:
+      context: zookeeper/
+      args:
+        ZK_VERSION: $ZK_VERSION
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - type: bind
+        source: ./data/zk-data
+        target: /var/lib/zookeeper/data
+      - type: bind
+        source: ./data/zk-logs
+        target: /var/lib/zookeeper/log
+    networks:
+      - kafka-elk
+
+  kafka:
+    container_name: kafka
+    hostname: kafka
+    build:
+      context: kafka/
+      args:
+        ZK_VERSION: $ZK_VERSION
+    ports:
+      - "29092:29092"
+      - "9092:9092"
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_LOG_DIRS: /var/kafka-logs
+    volumes:
+      - type: bind
+        source: ./var/run/docker.sock
+        target: /var/run/docker.sock
+      - type: bind
+        source: ./data/kafka-data
+        target: /var/lib/kafka/data
+      - type: bind
+        source: ./data/kafka-logs
+        target: /var/kafka-logs
+    networks:
+      - kafka-elk
+    depends_on:
+      - zookeeper
+
+networks:
+  kafka-elk:
+    driver: bridge
