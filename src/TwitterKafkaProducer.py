@@ -23,7 +23,7 @@ class FilteredStreamAPI():
         )
 
     def bearer_oauth(self, r):
-        r.headers["Authorization"] = f"Bearer {settings.BOOTSTRAP_SERVERS}"
+        r.headers["Authorization"] = f"Bearer {settings.BEARER_TOKEN}"
         return r
 
     def __get_rules(self):

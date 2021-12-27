@@ -1,4 +1,5 @@
 test/
-docker-compose/var/
-docker-compose/data/
-docker-compose/elasticsearch/nodes/
+var/
+data/
+elasticsearch/nodes/
+__pycache__
