@@ -17,4 +17,4 @@ python ./src/main.py
 ```
 
 # Kibana Visualization
-[./readme.img/kibana.png]
+![./readme.img/kibana.png]
