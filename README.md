@@ -15,3 +15,6 @@ developer.twitter.com 에서 키를 발급받고 각각 맞는 Key에 복사 후
 docker-compose -f ./docker-compose.yml up -d
 python ./src/main.py
 ```
+
+# Kibana Visualization
+[./readme.img/kibana.png]
